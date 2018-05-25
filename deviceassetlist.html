@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>WebApp - Assets</title>
+    <title>Define triggering rules</title>
     <!-- Custom Siemens Theme -->
     <link href="siemens-theme.css" rel="stylesheet">
 </head>
@@ -61,6 +61,7 @@ function getAssets(filterParams) {
     // Get aspects
     assetlist.forEach(function(element) {
         var aspectUrl = '/api/assetmanagement/v3/assets/' + element.assetId + '/aspects';
+       
         // Create request to get aspects
         var aspectReq = new XMLHttpRequest();
         aspectReq.open("GET", aspectUrl, false); // 'false' makes the request synchronous
@@ -72,6 +73,8 @@ function getAssets(filterParams) {
                     console.log('GET aspects response: ' + aspectReq.response);
                     var jsonResponse = JSON.parse(aspectReq.response);
                     element.aspects = jsonResponse['_embedded']['aspects'];
+                    // for every aspects, we get timeseries
+                    getLatestValueForAspects(element, 5);
                 }
                 else {
                     console.error('Request status text: ' + aspectReq.statusText);
@@ -82,7 +85,38 @@ function getAssets(filterParams) {
         aspectReq.send(null);
     }); 
 
+    // call timeseries to get latest data
+    // and zip to assetList
+    
+
     displayAssets(assetlist);
+}
+
+function getLatestValueForAspects(element, limit){
+    limit = limit || 1;
+    var to = new Date.now().toISOString();
+    var from = new Date(to).setMinues(to.getMinutes() - 1).toISOString();
+    var timeSeriesReq = new XMLHttpRequest();
+    var address = 'api/iottimeseries/v3/timeseries/' + element.assetId + "/";
+    // api/iottimeseries/v3/timeseries/b43703b007924c2889adc9da9f818a5b/Sensors?from=2018-05-01T00:00:00Z&to=2018-05-01T23:50:00Z&limit=100
+    element.aspects.forEach(function(aspect){
+        timeSeriesReq.open("GET", address + aspect.name + "?from="+from + "&to=" +to + "&limit=" + limit , false); // 'false' makes the request synchronous
+        timeSeriesReq.onreadystatechange = function() {
+            if (timeSeriesReq.readyState === 4) { // When readyState property is 4 and status property is 200, the response is ready
+                if (timeSeriesReq.status === 200) {
+                    console.log('GET timeseries response: ' + timeSeriesReq.response);
+                    var timeSeriesArray = JSON.parse(timeSeriesReq.response);
+                    var latestValue = timeSeriesArray && timeSeriesArray.length > 0 && timeSeriesArray[timeSeriesArray.length -1];
+                    aspect.variables.forEach(function(variable){
+                        variable.latestValue = latestData[variable.name];
+                    })
+                }
+                else {
+                    console.error('Request status text: ' + timeSeriesReq.statusText);
+                }
+            }
+        }
+    });
 }
 
 function displayAssets(assetlist){
@@ -128,9 +162,15 @@ function displayAssets(assetlist){
         // Display aspect data
         asset.aspects.forEach(function(aspect) {
             htmlStr = htmlStr + '<tr id="common_table_level2">'+
-                '<td colspan="5">'+
+                '<td colspan="3">'+
                     '<label>Aspect Name: ' + aspect.name + '</label>'+
                 '</td>'+
+                '<td colspan="1">'+
+                    '<label>Trigger Condition' + '</label>'+
+                '</td>'
+                '<td id="triggerValue-' + asset.assetId + '-' +  + 'colspan="1">'+
+                    '<label>Trigger Value' + '</label>'+
+                '</td>'
             '</tr>';
 
             // Display variable data
@@ -139,7 +179,9 @@ function displayAssets(assetlist){
                     '<td colspan="4">'+
                         '<label>Variable Name: ' + variable.name + '  |  Data Type: ' + variable.dataType + '</label>'+
                     '</td>'+
-                    
+                    '<td colspan="4">'+
+                        '<label>Variable Name: ' + variable.name + '  |  Data Type: ' + variable.dataType + '|  Latest value: ' + variable.latestValue + '</label>'+
+                    '</td>'+
                 '</tr>';
             });
         });
