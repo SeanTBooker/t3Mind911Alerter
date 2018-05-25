@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Get Event Data</title>
+    <!-- Custom Siemens Theme -->
+    <link href="siemens-theme.css" rel="stylesheet">
+</head>
+
+<script>
+
+window.onload = function() {
+    // Get and show all alarms
+    setInterval(function() {
+        checkForAlerts();
+    }, 5000);
+}
+
+function checkForAlerts(){
+    var alarmEventData = getAlarms(getAlarms());
+    if((alarmEventData != null) && (alarmEventData.length > 0)){
+        fireEvent(alarmEventData);
+    }
+}
+
+
+function getTimeSeriesData(assetId, aspectTypeName, limit){
+    limit = limit || 1;
+    var to = new Date.now().toISOString();
+    var from = new Date(to).setMinues(to.getMinutes() - 1).toISOString();
+    var timeSeriesReq = new XMLHttpRequest();
+    var address = 'api/iottimeseries/v3/timeseries/' + assetId + "/";
+    // api/iottimeseries/v3/timeseries/b43703b007924c2889adc9da9f818a5b/Sensors?from=2018-05-01T00:00:00Z&to=2018-05-01T23:50:00Z&limit=100
+    timeSeriesReq.open("GET", address + "/" + aspectTypeName + "?from="+from + "&to=" +to + "&limit=" + limit , false); // 'false' makes the request synchronous
+    timeSeriesReq.onreadystatechange = function() {
+        if (timeSeriesReq.readyState === 4) { // When readyState property is 4 and status property is 200, the response is ready
+            if (timeSeriesReq.status === 200) {
+                console.log('GET timeseries response: ' + timeSeriesReq.response);
+                var timeSeriesArray = JSON.parse(timeSeriesReq.response);
+                return timeSeriesArray;
+            }
+            else {
+                console.error('Request status text: ' + timeSeriesReq.statusText);
+            }
+        }
+    }
+    return [];
+}
+
+function getAlarms(alarmDefinitionList){
+    var alarmsGenerated = [];
+    var alarmslist = [];
+    var codex = 0;
+
+    for (var i = alarmDefinitionList.length - 1; i >= 0; i--) {
+        //Retrieved the list of alarms -> many triggers
+        var assestId = alarmDefinitionList[i]['assetId'];
+        
+        //Retrived Trigger List inside of the Alarms
+        var triggerList = alarmDefinitionList[i]['triggers'];
+
+        var aspectTypeName = (triggerList[0]['aspectTypeName'] != null) ? triggerList[0]['aspectTypeName'] : null;
+
+        var timeSeriesData = getTimeSeriesData(assestId, aspectTypeName, 5);
+
+        for (var x = timeSeriesData.length - 1; x >= 0; x--) {
+            //Need to iterate Trigger List againts Timeseries data
+            for (var u = triggerList.length - 1; u >= 0; u--) {
+                
+                //1. Obtain the Sensor Name:
+                var trigdPName = triggerList[u]['dataPointName'];
+
+                //2. Obtain the Sensor Name's data point (value):
+                var timeSerdPVal = parseFloat(timeSeriesData[x][trigdPName]);
+
+                //3. Get the trigger (<, >, =)
+                var trigger = triggerList[u]['trigger'];
+                //4. Get the condition 
+                var condition = parseFloat(triggerList[u]['condition']);
+                if(trigger == "<"){
+                    if(condition < timeSerdPVal){
+                        alarmsGenerated.push({
+                            timestamp: timeSeriesData[x]["_time"],
+                            entityId: assestId,
+                            severity: 1,
+                            description: trigdPName + ": Alert observed value ("+timeSerdPVal+") less than threshold ("+condition+")",
+                            code: trigdPName + "-BELOW-" + codex++,
+                        });
+                    }
+                } else if(trigger = ">"){
+                    if(condition > timeSerdPVal){
+                        alarmsGenerated.push({
+                            timestamp: timeSeriesData[x]["_time"],
+                            entityId: assestId,
+                            severity: 2,
+                            description: trigdPName + ": Alert observed value ("+timeSerdPVal+") more than threshold ("+condition+")",
+                            code: trigdPName + "-ABOVE-" + codex++,
+                        });
+                    }
+
+                } else if(trigger = "="){
+                    if(condition == timeSerdPVal){
+                        alarmsGenerated.push({
+                            timestamp: timeSeriesData[x]["_time"],
+                            entityId: assestId,
+                            severity: 3,
+                            description: trigdPName + ": Alert observed value ("+timeSerdPVal+") equals the threshold ("+condition+")",
+                            code: trigdPName + "-ABOVE-" + codex++,
+                        });
+                    }
+                }
+            }            
+        }
+
+    }
+    return alarmsGenerated;
+}
+
+function fireEvent(alarmEventData){
+    for (var i = alarmEventData.length - 1; i >= 0; i--) {
+
+        var eventsReq = new XMLHttpRequest();
+        var address = '/api/eventmanagement/v3/events';
+        eventsReq.open("POST", address, false); // 'false' makes the request synchronous
+
+        var data = new FormData();
+        data.append('timestamp', alarmEventData[i]['timestamp']);
+        data.append('entityId', alarmEventData[i]['entityId']);
+        data.append('severity', alarmEventData[i]['severity']);
+        data.append('description', alarmEventData[i]['description']);
+        data.append('code', alarmEventData[i]['code']);
+        data.append('acknowledged', 'false');
+
+        eventsReq.onload = function () {
+            // do something to response
+            console.log(this.responseText);
+        };
+        eventsReq.send(data);        
+    }
+}
+
+function sendEmail(){
+
+}
+
+</script>
+
