@@ -1,0 +1,8 @@
+applications:
+- name: hackstaticassetapp
+  instances: 1
+  buildpack: staticfile_buildpack
+  memory: 50M
+  disk_quota: 250MB
+  host: hackstaticassetapp1234-msdp-solarc02
+  domain: apps.eu1.mindsphere.io

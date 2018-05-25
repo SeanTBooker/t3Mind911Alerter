@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>WebApp - Agent Assets</title>
+    <!-- Custom Siemens Theme -->
+    <link href="siemens-theme.css" rel="stylesheet">
+</head>
+
+<script>
+function showTS(assetId, aspectName, variableName) {
+    // Set data for time series
+    var linkParams = {
+        assetId: assetId,
+        aspectName: aspectName,
+        variableName: variableName
+    }
+    localStorage.setItem("linkParams", JSON.stringify(linkParams));
+    // Redirect the page
+    window.location.href = "timeseries.html";
+}
+
+window.onload = function() {
+    // Get and show all assets
+    getAssets();
+}
+
+function filterAssets() {
+    // User input
+    var input = document.getElementById('asset_filter').value;
+    // Get asset with specific name
+    var filter = '"name": {"contains": {"value": "' + input + '"}}';
+    
+    getAssets(filter);
+}
+
+function getAssets(filterParams) {
+    // Set url
+    var assetUrl = "/api/assetmanagement/v3/assets";
+    // Filter asset type
+    var filter = '"typeId": {"startsWith": {"value": "core"}}'; // Agent asset types start with 'core'
+    // Filter asset name
+    if(filterParams) {
+        filter = filter + ', ' + filterParams;
+    }
+    assetUrl = assetUrl + '?filter=' + encodeURIComponent('{' + filter + '}')
+
+    // Create request to get assets
+    var assetReq = new XMLHttpRequest();
+    assetReq.open("GET", assetUrl, false); // 'false' makes the request synchronous
+
+    // Get assets
+    var assetlist = [];
+    assetReq.onreadystatechange = function() {
+        if (assetReq.readyState === 4) { // When readyState property is 4 and status property is 200, the response is ready
+            if (assetReq.status === 200) {
+                console.log('GET assets response: ' + assetReq.response);
+                var jsonResponse = JSON.parse(assetReq.response);
+                assetlist = jsonResponse['_embedded']['assets'];
+            }
+            else {
+                console.error('Request status text: ' + assetReq.statusText);
+            }
+        }
+    }
+    console.log('GET assets: ' + assetUrl);
+    assetReq.send(null);
+
+    // Get agents
+    assetlist.forEach(function(element) {
+        var agentUrl = '/api/agentmanagement/v3/agents/' + element.assetId;
+        // Create request to get agent
+        var agentReq = new XMLHttpRequest();
+        agentReq.open("GET", agentUrl, false); // 'false' makes the request synchronous
+
+        // Get agent for asset
+        agentReq.onreadystatechange = function() {
+            if (agentReq.readyState === 4) { // When readyState property is 4 and status property is 200, the response is ready
+                if (agentReq.status === 200) {
+                    console.log('GET agent response: ' + agentReq.response);
+                    var jsonResponse = JSON.parse(agentReq.response);
+                    element.agent = jsonResponse;
+                }
+                else {
+                    console.error('Request status text: ' + agentReq.statusText);
+                }
+            }
+        }
+        console.log('GET agent: ' + agentUrl);
+        agentReq.send(null);
+    });
+
+    // Get files
+    assetlist.forEach(function(element) {
+        var fileUrl = '/api/iotfile/v3/files/' + element.assetId;
+        // Create request to get files
+        var fileReq = new XMLHttpRequest();
+        fileReq.open("GET", fileUrl, false); // 'false' makes the request synchronous
+
+        // Get files for asset
+        fileReq.onreadystatechange = function() {
+            if (fileReq.readyState === 4) { // When readyState property is 4 and status property is 200, the response is ready
+                if (fileReq.status === 200) {
+                    console.log('GET files response: ' + fileReq.response);
+                    var jsonResponse = JSON.parse(fileReq.response);
+                    element.files = jsonResponse;
+                }
+                else {
+                    console.error('Request status text: ' + fileReq.statusText);
+                }
+            }
+        }
+        console.log('GET files: ' + fileUrl);
+        fileReq.send(null);
+    }); 
+
+    
+
+
+    displayAssets(assetlist);
+}
+
+function displayAssets(assetlist){
+    var htmlStr = '<table name="asssettable" id="common_table"> '+
+        '<tr id="header_row">'+
+            '<th>'+
+                '<label>Name</label>'+
+            '</th>'+
+            '<th>'+
+                '<label>AssetId</label>'+
+            '</th>'+
+            '<th>'+
+                '<label>Description</label>'+
+            '</th>'+
+            '<th>'+
+                '<label>Asset Type</label>'+
+            '</th>'+
+        '</tr>';
+ 
+    // Display asset data
+    assetlist.forEach(function(asset) {
+        htmlStr = htmlStr + '<tr id="common_table_level1">'+
+            '<td>'+
+                '<label>' + asset.name + '</label>'+
+            '</td>'+
+            '<td>'+
+                '<label>' + asset.assetId + '</label>'+
+            '</td>'+
+            '<td>'+
+                '<label>' + asset.description + '</label>'+
+            '</td>'+
+            '<td>'+
+                '<label>' + asset.typeId + '</label>'+
+            '</td>'+
+        '</tr>';
+
+        // Display agent data
+        if(asset.hasOwnProperty('agent')) {
+            htmlStr = htmlStr + '<tr id="common_table_level2">'+
+                '<td colspan="4">'+
+                    '<label>Agent Name: ' + asset.agent.name + '</label>'+
+                '</td>'+
+            '</tr>';
+        }
+
+        // Display file data
+        if(asset.hasOwnProperty('files')) {
+            asset.files.forEach(function(file) {
+                htmlStr = htmlStr + '<tr id="common_table_level3">'+
+                    '<td colspan="4">'+
+                        '<label>File Name: ' + file.name + '  |  File Type: ' + file.type + '</label><br>'+
+                        '<label>Path: ' + file.path + '  |  Timestamp: ' + file.timestamp + '</label>'+
+                    '</td>'+
+                '</tr>';
+            });
+        }
+    });
+
+    htmlStr = htmlStr + '</table>' ; 
+
+    document.getElementById("assetObj").innerHTML = htmlStr;
+}
+</script>
+
+<!-- MindSphere OS bar -->
+<script src="https://static.eu1.mindsphere.io/osbar/js/main.min.js"></script>
+<script>
+  _msb.init({
+      title: "WebApp - Assets",
+      appId: "_mscontent"
+  });
+</script>
+
+<body>
+    <div id="_mscontent">
+        <!-- Side Navigation-->
+        <div class="sidenav">
+            <img src="siemens.svg" class="sidenav-title">
+            <a href="deviceassetlist.html">Device Assets</a>
+            <a href="agentassetlist.html">Agent Assets</a>
+            
+        </div>
+        <!-- Side Content -->
+        <div class="main">
+            <div style="padding: 10px;">
+                Search for an asset name: <input type="text" id="asset_filter">
+                <button type="submit" onclick="filterAssets()">Search</button>
+            </div>
+            <div id="assetObj"></div>
+        </div>
+    </div>
+</body>
+
+</html>

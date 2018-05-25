@@ -1,0 +1,110 @@
+@charset "UTF-8";
+
+/* Custom siemens theme*/
+
+.siemens-bg-color {
+     background: #2B333D;
+}
+
+.siemens-bg-color a {
+    background: #2B333D;
+}
+
+.siemens-title {
+    position: relative;
+    padding-left: 10px;
+    top: 18px;
+}
+
+.siemens-bg-color-title {
+     background-color: #333C47;
+}
+
+/*** Table ***/
+#comon_table {
+    font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+#common_table td, #common_table th {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+/* #common_table tr:nth-child(even){background-color: #f2f2f2;} */
+
+/* #common_table tr:hover {background-color: #ddd;} */
+
+#common_table th {
+    padding-top: 6px;
+    padding-bottom: 6px;
+    text-align: left;
+    background-color: #333C47;
+    color: white;
+}
+
+/* #common_table_level1 {
+    font-size: 14px;
+    font-weight: bold;
+    background-color: #7b9ec6;
+} */
+#common_table_level1 {
+    font-size: 14px;
+    background-color: #333C47;
+    color: white;
+}
+
+#common_table_level2 {
+    font-size: 12px;
+    font-weight: normal;
+    background-color: #a1bedf;
+}
+
+#common_table_level3 {
+    font-size: 12px;
+    font-weight: normal;
+    background-color: #f0f2f5;
+}
+
+/*** Side Navigation ***/
+body {
+    font-family: "Lato", sans-serif;
+}
+
+.sidenav {
+    height: 100%;
+    width: 200px;
+    position: fixed;
+    z-index: 1;
+    /*top: 0;*/
+    left: 0;
+    background-color: #2B333D;
+    overflow-x: hidden;
+    padding-top: 20px;
+}
+
+.sidenav-title {
+    padding: 6px 6px 6px 32px;
+}
+
+.sidenav a {
+    padding: 6px 6px 6px 32px;
+    text-decoration: none;
+    font-size: 16px;
+    color: #818181;
+    display: block;
+}
+
+.sidenav a:hover {
+    color: #f1f1f1;
+}
+
+.main {
+    margin-left: 200px; /* Same as the width of the sidenav */
+}
+
+@media screen and (max-height: 450px) {
+  .sidenav {padding-top: 15px;}
+  .sidenav a {font-size: 18px;}
+}
