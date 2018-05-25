@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>WebApp - Assets</title>
+    <!-- Custom Siemens Theme -->
+    <link href="siemens-theme.css" rel="stylesheet">
+</head>
+
+<script>
+
+window.onload = function() {
+    // Get and show all assets
+    getAssets();
+}
+
+function filterAssets() {
+    // User input
+    var input = document.getElementById('asset_filter').value;
+    // Get asset with specific name
+    var filter = '"name": {"contains": {"value": "' + input + '"}}';
+    
+    getAssets(filter);
+}
+
+function getAssets(filterParams) {
+    // Set url
+    var assetUrl = "/api/assetmanagement/v3/assets";
+    // Filter asset type
+    //var tenant = "casseoe"; // Hard coded tenant name !!!
+    var tenant = "solarc02"; // Hard coded tenant name !!!
+    var filter = '"typeId": {"startsWith": {"value": "' + tenant + '"}}'; // Device asset types start with tenant name
+    // Filter asset name
+    if(filterParams) {
+        filter = filter + ', ' + filterParams;
+    }
+    assetUrl = assetUrl + '?filter=' + encodeURIComponent('{' + filter + '}')
+
+    // Create request to get assets
+    var assetReq = new XMLHttpRequest();
+    assetReq.open("GET", assetUrl, false); // 'false' makes the request synchronous
+
+    // Get assets
+    var assetlist = [];
+    assetReq.onreadystatechange = function() {
+        if (assetReq.readyState === 4) { // When readyState property is 4 and status property is 200, the response is ready
+            if (assetReq.status === 200) {
+                console.log('GET assets response: ' + assetReq.response);
+                var jsonResponse = JSON.parse(assetReq.response);
+                assetlist = jsonResponse['_embedded']['assets'];
+            }
+            else {
+                console.error('Request status text: ' + assetReq.statusText);
+            }
+        }
+    }
+    console.log('GET assets: ' + assetUrl);
+    assetReq.send(null);
+
+    // Get aspects
+    assetlist.forEach(function(element) {
+        var aspectUrl = '/api/assetmanagement/v3/assets/' + element.assetId + '/aspects';
+        // Create request to get aspects
+        var aspectReq = new XMLHttpRequest();
+        aspectReq.open("GET", aspectUrl, false); // 'false' makes the request synchronous
+
+        // Get all aspects for one asset
+        aspectReq.onreadystatechange = function() {
+            if (aspectReq.readyState === 4) { // When readyState property is 4 and status property is 200, the response is ready
+                if (aspectReq.status === 200) {
+                    console.log('GET aspects response: ' + aspectReq.response);
+                    var jsonResponse = JSON.parse(aspectReq.response);
+                    element.aspects = jsonResponse['_embedded']['aspects'];
+                }
+                else {
+                    console.error('Request status text: ' + aspectReq.statusText);
+                }
+            }
+        }
+        console.log('GET aspects: ' + aspectUrl);
+        aspectReq.send(null);
+    }); 
+
+    displayAssets(assetlist);
+}
+
+function displayAssets(assetlist){
+    var htmlStr = '<table name="asssettable" id="common_table"> '+
+        '<tr id="header_row">'+
+            '<th>'+
+                '<label>Asset Name</label>'+
+            '</th>'+
+            '<th>'+
+                '<label>Asset ID</label>'+
+            '</th>'+
+            '<th>'+
+                '<label>Asset Description</label>'+
+            '</th>'+
+            '<th>'+
+                '<label>Asset Type</label>'+
+            '</th>'+
+            '<th>'+
+                '<label>Asset Location</label>'+
+            '</th>'+
+        '</tr>';
+ 
+    // Display asset data
+    assetlist.forEach(function(asset) {
+        htmlStr = htmlStr + '<tr id="common_table_level1">'+
+            '<td>'+
+                '<label>' + asset.name + '</label>'+
+            '</td>'+
+            '<td>'+
+                '<label>' + asset.assetId + '</label>'+
+            '</td>'+
+            '<td>'+
+                '<label>' + asset.description + '</label>'+
+            '</td>'+
+            '<td>'+
+                '<label>' + asset.typeId + '</label>'+
+            '</td>'+
+            '<td>'+
+                '<label>' + asset.location.streetAddress + ' -' + asset.location.postalCode + '- ' + asset.location.locality + '</label>'+
+            '</td>'+
+        '</tr>';
+
+        // Display aspect data
+        asset.aspects.forEach(function(aspect) {
+            htmlStr = htmlStr + '<tr id="common_table_level2">'+
+                '<td colspan="5">'+
+                    '<label>Aspect Name: ' + aspect.name + '</label>'+
+                '</td>'+
+            '</tr>';
+
+            // Display variable data
+            aspect.variables.forEach(function(variable) {
+                htmlStr = htmlStr + '<tr id="common_table_level3">'+
+                    '<td colspan="4">'+
+                        '<label>Variable Name: ' + variable.name + '  |  Data Type: ' + variable.dataType + '</label>'+
+                    '</td>'+
+                    
+                '</tr>';
+            });
+        });
+    });
+
+    htmlStr = htmlStr + '</table>' ; 
+
+    document.getElementById("assetObj").innerHTML = htmlStr;
+}
+</script>
+
+<!-- MindSphere OS bar -->
+<script src="https://static.eu1.mindsphere.io/osbar/js/main.min.js"></script>
+<script>
+  _msb.init({
+      title: "WebApp - Assets",
+      appId: "_mscontent"
+  });
+</script>
+
+<body>
+    <div id="_mscontent">
+        <!-- Side Navigation-->
+        <div class="sidenav">
+            <img src="siemens.svg" class="sidenav-title">
+            <a href="deviceassetlist.html">Device Assets</a>
+            <a href="agentassetlist.html">Agent Assets</a>
+           
+        </div>
+        <!-- Side Content -->
+        <div class="main">
+            <div style="padding: 10px;">
+                Search for an asset name: <input type="text" id="asset_filter">
+                <button type="submit" onclick="filterAssets()">Search</button>
+            </div>
+            <div id="assetObj"></div>
+        </div>
+    </div>
+</body>
+
+</html>
